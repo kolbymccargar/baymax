@@ -1,17 +1,25 @@
-import { useEffect, useState } from 'react';
-import Chat from './Chat.jsx';
+import { useState } from 'react';
+import Today from './views/Today.jsx';
+import Tasks from './views/Tasks.jsx';
+import Routines from './views/Routines.jsx';
+import Supplements from './views/Supplements.jsx';
+import Weight from './views/Weight.jsx';
+import Health from './views/Health.jsx';
+import Profile from './views/Profile.jsx';
+
+const VIEWS = {
+  today: ['Today', Today],
+  tasks: ['Tasks', Tasks],
+  routines: ['Routines', Routines],
+  supplements: ['Supplements', Supplements],
+  weight: ['Weight', Weight],
+  health: ['Health', Health],
+  profile: ['Profile', Profile],
+};
 
 export default function App() {
-  const [today, setToday] = useState({ tasks: [], routines: [] });
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetch('/api/today')
-      .then((r) => r.json())
-      .then(setToday)
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
+  const [view, setView] = useState('today');
+  const Current = VIEWS[view][1];
 
   const dateLabel = new Date().toLocaleDateString(undefined, {
     weekday: 'long',
@@ -26,47 +34,16 @@ export default function App() {
         <p className="date">{dateLabel}</p>
       </header>
 
-      <main className="grid">
-        <section className="panel">
-          <h2>Today's Tasks</h2>
-          {loading ? (
-            <p className="muted">Loading…</p>
-          ) : today.tasks.length ? (
-            <ul className="list">
-              {today.tasks.map((t) => (
-                <li key={t.id}>
-                  <span>{t.title}</span>
-                  {t.notes && <small className="muted">{t.notes}</small>}
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="muted">Nothing due today.</p>
-          )}
-        </section>
+      <nav className="tabs">
+        {Object.entries(VIEWS).map(([key, [label]]) => (
+          <button key={key} className={key === view ? 'active' : ''} onClick={() => setView(key)}>
+            {label}
+          </button>
+        ))}
+      </nav>
 
-        <section className="panel">
-          <h2>Routines</h2>
-          {loading ? (
-            <p className="muted">Loading…</p>
-          ) : today.routines.length ? (
-            <ul className="list">
-              {today.routines.map((r) => (
-                <li key={r.id}>
-                  <span>{r.name}</span>
-                  {r.schedule && <small className="muted">{r.schedule}</small>}
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="muted">No routines yet.</p>
-          )}
-        </section>
-
-        <section className="panel chat-panel">
-          <h2>Chat</h2>
-          <Chat />
-        </section>
+      <main>
+        <Current />
       </main>
     </div>
   );

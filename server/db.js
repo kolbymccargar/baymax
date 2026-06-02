@@ -12,8 +12,8 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS tasks (
     id        INTEGER PRIMARY KEY AUTOINCREMENT,
     title     TEXT NOT NULL,
-    due_date  TEXT,                       -- YYYY-MM-DD
-    status    TEXT NOT NULL DEFAULT 'open', -- open | done
+    due_date  TEXT,                          -- YYYY-MM-DD
+    status    TEXT NOT NULL DEFAULT 'open',  -- open | done
     notes     TEXT
   );
 
@@ -31,18 +31,64 @@ db.exec(`
     value   TEXT,
     notes   TEXT
   );
+
+  -- Single-user profile (always row id = 1).
+  CREATE TABLE IF NOT EXISTS profile (
+    id              INTEGER PRIMARY KEY CHECK (id = 1),
+    height          TEXT,
+    current_weight  REAL,
+    goal            TEXT
+  );
+
+  -- Flexible key/value facts about the user (cut_aggressiveness, wake_time, ...).
+  CREATE TABLE IF NOT EXISTS profile_facts (
+    key    TEXT PRIMARY KEY,
+    value  TEXT
+  );
+
+  CREATE TABLE IF NOT EXISTS supplements (
+    id      INTEGER PRIMARY KEY AUTOINCREMENT,
+    name    TEXT NOT NULL,
+    dose    TEXT,
+    timing  TEXT,   -- e.g. "morning", "with food"
+    active  INTEGER NOT NULL DEFAULT 1,  -- 1 = yes, 0 = no
+    notes   TEXT
+  );
+
+  -- One row per supplement actually taken on a given day.
+  CREATE TABLE IF NOT EXISTS supplement_log (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    supplement_id  INTEGER NOT NULL,
+    date           TEXT NOT NULL,   -- YYYY-MM-DD
+    UNIQUE (supplement_id, date)
+  );
+
+  CREATE TABLE IF NOT EXISTS weight_log (
+    id      INTEGER PRIMARY KEY AUTOINCREMENT,
+    date    TEXT NOT NULL,   -- YYYY-MM-DD
+    weight  REAL NOT NULL
+  );
+
+  -- Conversation memory. Foundation for a deeper memory layer later.
+  CREATE TABLE IF NOT EXISTS chat_history (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    role       TEXT NOT NULL,   -- user | assistant
+    content    TEXT NOT NULL,
+    timestamp  TEXT NOT NULL    -- ISO 8601
+  );
 `);
 
-// --- Sample data (first run only) -------------------------------------------
-// Gives the Today view something to show during your first local test.
-// Safe to delete this block once you start adding your own data.
-const taskCount = db.prepare('SELECT COUNT(*) AS n FROM tasks').get().n;
-if (taskCount === 0) {
-  const today = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD, local time
-  db.prepare('INSERT INTO tasks (title, due_date, status, notes) VALUES (?, ?, ?, ?)')
-    .run('Try out Baymax', today, 'open', 'Sample task — delete me anytime');
-  db.prepare('INSERT INTO routines (name, schedule, last_done) VALUES (?, ?, ?)')
-    .run('Drink water', 'daily', null);
+// --- Seed data (only when empty) --------------------------------------------
+// Profile: the user's starting facts.
+if (!db.prepare('SELECT 1 FROM profile WHERE id = 1').get()) {
+  db.prepare('INSERT INTO profile (id, height, current_weight, goal) VALUES (1, ?, ?, ?)')
+    .run(`6'1"`, 190, 'aggressive cut');
+}
+
+// Supplements: names only; dose/timing left blank for the user to fill in.
+if (db.prepare('SELECT COUNT(*) AS n FROM supplements').get().n === 0) {
+  const ins = db.prepare('INSERT INTO supplements (name, dose, timing, active, notes) VALUES (?, NULL, NULL, 1, NULL)');
+  for (const name of ['Ashwagandha', 'Zinc', 'Magnesium', 'Vitamin D', 'Fish oil']) ins.run(name);
 }
 
 export default db;
