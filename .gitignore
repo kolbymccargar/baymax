@@ -19,3 +19,8 @@ Thumbs.db
 # Build output
 dist/
 build/
+
+# Local SQLite database
+*.db
+*.db-wal
+*.db-shm
