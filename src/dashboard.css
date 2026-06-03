@@ -1,0 +1,519 @@
+/* ============================================================
+   BAYMAX HUD — Command-center dashboard
+   All rules scoped under .hud so other views are untouched.
+   ============================================================ */
+
+/* ── Variables ──────────────────────────────────────────── */
+.hud {
+  --c-bg:           #080c14;
+  --c-panel:        #0d1220;
+  --c-panel-alt:    #101828;
+  --c-border:       #192236;
+  --c-border-hi:    #243050;
+  --c-accent:       #00c8ff;
+  --c-accent-dim:   rgba(0, 200, 255, 0.08);
+  --c-accent-mid:   rgba(0, 200, 255, 0.18);
+  --c-accent-glow:  rgba(0, 200, 255, 0.30);
+  --c-green:        #00e5a0;
+  --c-green-glow:   rgba(0, 229, 160, 0.35);
+  --c-red:          #ff3d50;
+  --c-text:         #dde5f5;
+  --c-muted:        #46556e;
+  --c-label:        #2b3d5a;
+  --radius:         14px;
+  --radius-sm:      9px;
+  --gap:            14px;
+
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+  color: var(--c-text);
+
+  /* Faint cyan grid texture — gives depth without weight */
+  background-image:
+    linear-gradient(rgba(0, 200, 255, 0.022) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 200, 255, 0.022) 1px, transparent 1px);
+  background-size: 44px 44px;
+  background-position: -1px -1px;
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+  padding-bottom: 32px;
+}
+
+/* ── Base panel ─────────────────────────────────────────── */
+.hud-panel {
+  background: var(--c-panel);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius);
+  padding: 22px 26px;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Hairline top-edge highlight gives the panel a lit top */
+.hud-panel::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 15%; right: 15%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.055), transparent);
+  pointer-events: none;
+}
+
+/* ── Section label ──────────────────────────────────────── */
+.hud-lbl {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--c-accent);
+  opacity: 0.55;
+  margin: 0 0 14px;
+  user-select: none;
+}
+
+/* ── Entry animation ────────────────────────────────────── */
+@keyframes hud-enter {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.hud-panel {
+  animation: hud-enter 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: var(--d, 0ms);
+}
+
+/* ── HERO — Morning brief ───────────────────────────────── */
+.hud-hero {
+  border-color: var(--c-border-hi);
+}
+
+/* Slow-breathing accent border overlay */
+.hud-hero::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: var(--radius);
+  border: 1px solid var(--c-accent);
+  opacity: 0;
+  animation: hero-breathe 5s ease-in-out 0.8s infinite;
+  pointer-events: none;
+}
+
+@keyframes hero-breathe {
+  0%, 100% { opacity: 0.12; }
+  50%       { opacity: 0.35; }
+}
+
+.hud-briefing {
+  font-size: 0.9rem;
+  line-height: 1.75;
+  color: #b8d0f0;
+  white-space: pre-wrap;
+  margin: 0;
+}
+
+.hud-hero-loading {
+  color: var(--c-muted);
+  font-size: 0.85rem;
+  font-style: italic;
+}
+
+.hud-hero-error {
+  color: var(--c-red);
+  font-size: 0.85rem;
+}
+
+/* ── STATS — Animated number blocks ────────────────────── */
+.hud-stats {
+  background: var(--c-panel-alt);
+}
+
+.hud-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 10px;
+}
+
+.hud-stat {
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-sm);
+  padding: 14px 16px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  transition: border-color 0.2s;
+}
+
+.hud-stat:hover {
+  border-color: var(--c-border-hi);
+}
+
+.hud-stat-val {
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--c-accent);
+  letter-spacing: -0.02em;
+  /* Static ambient glow on the numbers */
+  text-shadow: 0 0 28px rgba(0, 200, 255, 0.28);
+}
+
+.hud-stat-unit {
+  font-size: 0.7rem;
+  font-weight: 500;
+  opacity: 0.55;
+  margin-left: 3px;
+  letter-spacing: 0.04em;
+}
+
+.hud-stat-name {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--c-muted);
+}
+
+.hud-stat-note {
+  font-size: 0.68rem;
+  color: var(--c-muted);
+  margin-top: 1px;
+}
+
+.hud-stats-footnote {
+  margin: 12px 0 0;
+  font-size: 0.65rem;
+  color: var(--c-label);
+  letter-spacing: 0.04em;
+}
+
+/* ── MIDDLE — two-column grid ───────────────────────────── */
+.hud-middle {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: var(--gap);
+  align-items: start;
+}
+
+/* Right column stacks supplements + tasks */
+.hud-right {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+}
+
+/* ── WORKOUT ────────────────────────────────────────────── */
+.hud-focus {
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--c-text);
+  line-height: 1.3;
+  margin-bottom: 4px;
+}
+
+.hud-focus-note {
+  font-size: 0.82rem;
+  font-weight: 400;
+  color: var(--c-muted);
+}
+
+.hud-run-flag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 8px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--c-green);
+}
+
+.hud-run-flag.off {
+  color: var(--c-muted);
+}
+
+.hud-run-pip {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.hud-run-flag.on .hud-run-pip {
+  box-shadow: 0 0 8px var(--c-green-glow);
+}
+
+/* ── Routines ───────────────────────────────────────────── */
+.hud-routines {
+  margin-top: 20px;
+  border-top: 1px solid var(--c-border);
+  padding-top: 16px;
+}
+
+.hud-block {
+  margin-bottom: 12px;
+}
+
+.hud-block-lbl {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--c-accent);
+  opacity: 0.6;
+  margin: 0 0 6px;
+}
+
+.hud-routine-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.hud-routine-item {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 0.8rem;
+  color: #6a7d9c;
+  line-height: 1.45;
+}
+
+.hud-dot {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--c-accent);
+  opacity: 0.5;
+  flex-shrink: 0;
+  margin-top: 7px;
+}
+
+/* ── SUPPLEMENTS ────────────────────────────────────────── */
+.hud-supp-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.hud-supp-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 8px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background 0.15s;
+  user-select: none;
+}
+
+.hud-supp-item:hover {
+  background: var(--c-accent-dim);
+}
+
+.hud-supp-pip {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 1.5px solid var(--c-muted);
+  flex-shrink: 0;
+  transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
+}
+
+.hud-supp-item.taken .hud-supp-pip {
+  background: var(--c-green);
+  border-color: var(--c-green);
+  box-shadow: 0 0 9px var(--c-green-glow);
+}
+
+.hud-supp-name {
+  font-size: 0.85rem;
+  font-weight: 500;
+  flex: 1;
+  transition: opacity 0.2s;
+}
+
+.hud-supp-item.taken .hud-supp-name {
+  opacity: 0.38;
+}
+
+.hud-supp-timing {
+  font-size: 0.68rem;
+  color: var(--c-muted);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+/* ── TASKS ──────────────────────────────────────────────── */
+.hud-task-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.hud-task-item {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--c-border);
+  font-size: 0.85rem;
+}
+
+.hud-task-item:last-child { border-bottom: none; }
+
+.hud-task-pip {
+  width: 5px;
+  height: 5px;
+  border-radius: 1px;
+  background: var(--c-accent);
+  opacity: 0.6;
+  flex-shrink: 0;
+  margin-top: 5px;
+  transform: rotate(45deg);
+}
+
+.hud-task-note {
+  font-size: 0.72rem;
+  color: var(--c-muted);
+  margin-left: auto;
+}
+
+.hud-none {
+  font-size: 0.82rem;
+  color: var(--c-muted);
+  font-style: italic;
+  margin: 4px 0 0;
+}
+
+/* ── CHAT — command line ────────────────────────────────── */
+.hud-chat .messages {
+  min-height: 120px;
+  max-height: 300px;
+  background: rgba(0, 0, 0, 0.18);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  margin-bottom: 10px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--c-border) transparent;
+}
+
+.hud-chat .msg p {
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+  font-size: 0.875rem;
+  line-height: 1.65;
+}
+
+.hud-chat .msg.assistant p {
+  color: #98c8f0;
+}
+
+.hud-chat .msg.user p {
+  color: var(--c-text);
+}
+
+.hud-chat .role {
+  color: var(--c-label);
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+  letter-spacing: 0.08em;
+}
+
+.hud-chat .composer {
+  gap: 10px;
+}
+
+.hud-chat .composer input {
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+  font-size: 0.875rem;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--c-border);
+  color: var(--c-text);
+  border-radius: var(--radius-sm);
+  padding: 11px 14px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.hud-chat .composer input:focus {
+  outline: none;
+  border-color: var(--c-accent);
+  box-shadow: 0 0 0 3px rgba(0, 200, 255, 0.1);
+}
+
+.hud-chat .composer input::placeholder {
+  color: var(--c-muted);
+}
+
+.hud-chat .composer button {
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  background: var(--c-accent-mid);
+  color: var(--c-accent);
+  border: 1px solid rgba(0, 200, 255, 0.3);
+  border-radius: var(--radius-sm);
+  padding: 11px 20px;
+  cursor: pointer;
+  transition: background 0.15s, box-shadow 0.15s;
+}
+
+.hud-chat .composer button:hover:not(:disabled) {
+  background: rgba(0, 200, 255, 0.25);
+  box-shadow: 0 0 14px rgba(0, 200, 255, 0.15);
+}
+
+.hud-chat .composer button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* muted / error inside hud */
+.hud .muted,
+.hud-chat .muted {
+  color: var(--c-muted);
+  font-size: 0.82rem;
+}
+
+.hud-chat .error {
+  color: var(--c-red);
+  font-size: 0.82rem;
+}
+
+/* ── Responsive ─────────────────────────────────────────── */
+@media (max-width: 860px) {
+  .hud-middle {
+    grid-template-columns: 1fr;
+  }
+
+  .hud-stat-grid {
+    grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  }
+
+  .hud-stat-val {
+    font-size: 1.6rem;
+  }
+}
+
+@media (max-width: 600px) {
+  .hud-panel {
+    padding: 16px 18px;
+  }
+
+  .hud-stat-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

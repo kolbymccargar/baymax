@@ -26,7 +26,7 @@ export function todaySnapshot() {
     .all(today);
   const latestWeight =
     db.prepare('SELECT date, weight FROM weight_log ORDER BY date DESC, id DESC LIMIT 1').get() || null;
-  return { date: today, tasks, routines, supplements, latestWeight, profile: getProfile() };
+  return { date: today, tasks, routines, supplements, latestWeight, profile: getProfile(), workout: todayWorkout() };
 }
 
 export function getWorkoutSchedule() {

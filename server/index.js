@@ -4,7 +4,8 @@ import path from 'node:path';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import db from './db.js';
-import { MODEL, PORT, HISTORY_LIMIT } from './config.js';
+import { MODEL, PORT, HISTORY_LIMIT, VAULT_NOTES } from './config.js';
+import { readVaultNotes } from './vault.js';
 import { buildSystemPrompt } from './brain.js';
 import { getProfile, todaySnapshot, brainContext, localToday } from './data.js';
 import { TOOLS, executeTool } from './tools.js';
@@ -155,7 +156,9 @@ app.get('/api/briefing', async (req, res) => {
 WORKOUT: ${workoutLine}
 RUN: ${runNumbers}`;
 
-  const system = buildSystemPrompt(ctx, now);
+  // Read vault notes at request time so briefing always has the latest business state.
+  const vaultBlock = readVaultNotes(VAULT_NOTES);
+  const system = buildSystemPrompt(ctx, now, vaultBlock);
 
   const runSection = runDay
     ? `2. TODAY'S WORKOUT & RUN — state today's workout focus, then the run target (distance, duration, calories) from COMPUTED NUMBERS. Flag run numbers as estimates ("rough math").`
@@ -165,17 +168,22 @@ RUN: ${runNumbers}`;
     ? `3. FUEL — fasted vs. fed for the run given the aggressive cut; 1-2 specific food/snack suggestions. Flag as general guidance.`
     : `3. FUEL — 1-2 food/snack suggestions that support the cut and today's workout. No run context needed. Flag as general guidance.`;
 
+  const businessNote = vaultBlock
+    ? `  Business context is loaded (vault notes). In section 1, weigh fitness urgency against business urgency for the time of day and lead with whichever matters more. In section 5, add a business directive: one specific move to push MRR toward the September target today.`
+    : `  (No vault notes loaded — fitness-only briefing.)`;
+
   // Synthetic trigger — the user hasn't typed anything; we fire the briefing.
   const trigger = `${numbersBlock}
 
 Write my morning briefing now. I just opened the app. Deliver it in character — no preamble, no meta-commentary, just open and go.
+${businessNote}
 
 Hit all five sections in order:
-1. GREETING — date/time-aware, in voice.
+1. GREETING + TOP DIRECTIVE — date/time-aware, in voice. Read both the fitness context and the business context. Pick the single most important thing to do right now — fitness action or business action, whichever is objectively more urgent for this time of day. State it in one decisive line after the greeting.
 ${runSection}
 ${fuelSection}
 4. SUPPLEMENTS — use the timing from the live context exactly (e.g. "with breakfast", "pre-workout", "night, before bed"). Group by when they're taken. Flag any not yet marked taken. Do not invent timings.
-5. TODAY — tasks due today; routines grouped by time block (MORNING / DAY / NIGHT) from live context; anything overdue flagged.
+5. TODAY — tasks due today; routines grouped by time block (MORNING / DAY / NIGHT); anything overdue. Then: one specific business move to make today pulled from the vault (name the client, channel, or action — be concrete).
 
 Tight. Bullets over paragraphs. Briefing, not an essay.`;
 
@@ -187,7 +195,21 @@ Tight. Bullets over paragraphs. Briefing, not an essay.`;
       messages: [{ role: 'user', content: trigger }],
     });
     const briefing = (data.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('');
-    res.json({ briefing });
+    res.json({
+      briefing,
+      stats: {
+        bmr:            bmr           ? Math.round(bmr) : null,
+        tdee:           tdee          ?? null,
+        deficit:        deficit       ?? null,
+        targetCalories: targetCalories ?? null,
+        runCalTarget:   runCalTarget  ?? null,
+        runMiles:       runMiles      ? parseFloat(runMiles) : null,
+        runMinutes:     runMinutes    ?? null,
+        cpm:            cpm           ?? null,
+        runDay,
+        workout:        wo            ?? null,
+      },
+    });
   } catch (err) {
     res.status(err.status || 500).json({ error: err.message });
   }

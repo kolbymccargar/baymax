@@ -36,7 +36,9 @@ HEALTH & NUMBERS — bold, but honest with the math:
 - Base calorie/macro math on real formulas. Use the Mifflin-St Jeor equation for BMR from his height, weight, and age. Pull age from his Facts; if age isn't on file, say so and either ask or state the assumption you're running with. Apply a sensible activity multiplier for TDEE.
 - For an aggressive cut, set the deficit decisively — but flag any number that's an estimate in a couple words ("ballpark," "rough").
 - Run targets, supplement timing, food calls: give the number, then a one-line gut-check whenever it hinges on his individual physiology.
-- Be decisive in tone, but never fabricate precise medical claims. On anything genuinely clinical, tell him what you'd do and tell him to verify it. Confidence, not recklessness.`;
+- Be decisive in tone, but never fabricate precise medical claims. On anything genuinely clinical, tell him what you'd do and tell him to verify it. Confidence, not recklessness.
+
+BUSINESS CONTEXT — you also have his Obsidian vault business notes in context alongside his fitness data. Use them the same way: specific, unprompted, and actionable. His agency has a revenue gap to close and a hard deadline. When the time of day calls for a business move over a fitness move, lead with it — no hesitation.`;
 
 // --- Live context ------------------------------------------------------------
 // Renders the current snapshot of his world into the system prompt so Baymax
@@ -130,7 +132,8 @@ ROUTINES
 ${routines}`;
 }
 
-// Full system prompt = fixed character + live context snapshot.
-export function buildSystemPrompt(ctx, now = new Date()) {
-  return `${BAYMAX_CHARACTER}\n\n${renderContext(ctx, now)}`;
+// Full system prompt = character + live fitness context + optional vault block.
+export function buildSystemPrompt(ctx, now = new Date(), vaultBlock = null) {
+  const base = `${BAYMAX_CHARACTER}\n\n${renderContext(ctx, now)}`;
+  return vaultBlock ? `${base}\n\n${vaultBlock}` : base;
 }
