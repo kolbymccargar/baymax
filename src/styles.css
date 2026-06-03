@@ -267,6 +267,19 @@ body {
   color: var(--muted);
 }
 
+/* Routine time-block grouping */
+.routine-block + .routine-block {
+  margin-top: 10px;
+}
+
+.routine-block-label {
+  margin: 0 0 4px;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+}
+
 /* Morning briefing block — above the chat history */
 .briefing {
   border-bottom: 1px solid var(--border);

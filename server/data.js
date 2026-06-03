@@ -29,11 +29,20 @@ export function todaySnapshot() {
   return { date: today, tasks, routines, supplements, latestWeight, profile: getProfile() };
 }
 
-// Today's snapshot plus overdue tasks — the context Baymax's brain reads.
+export function getWorkoutSchedule() {
+  return db.prepare('SELECT * FROM workout_schedule ORDER BY day_of_week').all();
+}
+
+export function todayWorkout() {
+  return db.prepare('SELECT * FROM workout_schedule WHERE day_of_week = ?').get(new Date().getDay()) || null;
+}
+
+// Today's snapshot plus overdue tasks and workout — the context Baymax's brain reads.
 export function brainContext() {
   const snap = todaySnapshot();
   const overdue = db
     .prepare("SELECT * FROM tasks WHERE due_date IS NOT NULL AND due_date < ? AND status != 'done' ORDER BY due_date")
     .all(snap.date);
-  return { ...snap, overdue };
+  const workout = todayWorkout();
+  return { ...snap, overdue, workout };
 }

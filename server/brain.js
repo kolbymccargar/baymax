@@ -75,15 +75,33 @@ function renderContext(ctx, now) {
     ? ctx.overdue.map((t) => `- ${t.title} (was due ${t.due_date})`).join('\n  ')
     : 'none';
 
-  const routines = ctx.routines?.length
-    ? ctx.routines
-        .map((r) => `- ${r.name}${r.schedule ? ` [${r.schedule}]` : ''}${r.last_done ? ` — last done ${r.last_done}` : ''}`)
-        .join('\n  ')
-    : 'none';
+  const TIME_BLOCKS = ['morning', 'day', 'night'];
+  const byBlock = {};
+  for (const r of ctx.routines || []) {
+    const b = r.time_block || 'other';
+    (byBlock[b] = byBlock[b] || []).push(r);
+  }
+  const routineLines = [];
+  for (const block of [...TIME_BLOCKS, 'other']) {
+    const items = byBlock[block];
+    if (!items?.length) continue;
+    routineLines.push(`  ${block.toUpperCase()}`);
+    for (const r of items) {
+      routineLines.push(`    - ${r.name}${r.last_done ? ` — last done ${r.last_done}` : ''}`);
+    }
+  }
+  const routines = routineLines.length ? routineLines.join('\n') : 'none';
 
   const weight = ctx.latestWeight
     ? `${ctx.latestWeight.weight} (logged ${ctx.latestWeight.date})`
     : p.current_weight ?? 'unknown';
+
+  const DAY_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const wo = ctx.workout;
+  const workoutBlock = wo
+    ? `Focus: ${wo.focus}
+  Run: ${wo.run ? 'YES — 2 miles minimum' : 'NO RUN TODAY'}${wo.notes ? ` (${wo.notes})` : ''}`
+    : 'No schedule on file';
 
   return `=== LIVE CONTEXT (this is real, current data — reference it naturally) ===
 Date: ${date}
@@ -96,6 +114,9 @@ PROFILE
   Goal: ${p.goal || 'unset'}
   Facts: ${facts}
 
+TODAY'S WORKOUT (${DAY_NAMES[new Date().getDay()]})
+  ${workoutBlock}
+
 SUPPLEMENTS (today)
   ${supps}
 
@@ -106,7 +127,7 @@ OVERDUE TASKS
   ${overdue}
 
 ROUTINES
-  ${routines}`;
+${routines}`;
 }
 
 // Full system prompt = fixed character + live context snapshot.

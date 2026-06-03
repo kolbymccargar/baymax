@@ -4,7 +4,7 @@
 //  changes data, used to tell the UI to refresh), and a `run(input)` function.
 // =============================================================================
 import db from './db.js';
-import { getProfile, todaySnapshot, localToday } from './data.js';
+import { getProfile, todaySnapshot, localToday, getWorkoutSchedule, todayWorkout } from './data.js';
 
 const get = (table, id) => db.prepare(`SELECT * FROM ${table} WHERE id = ?`).get(id);
 
@@ -90,12 +90,18 @@ const handlers = {
       description: 'Create a new routine.',
       input_schema: {
         type: 'object',
-        properties: { name: str('Routine name'), schedule: str('Schedule, e.g. "daily" or "Mon,Wed,Fri"') },
+        properties: {
+          name: str('Routine name'),
+          schedule: str('Schedule, e.g. "daily" or "Mon,Wed,Fri"'),
+          time_block: { type: 'string', enum: ['morning', 'day', 'night'], description: 'Time-of-day group' },
+        },
         required: ['name'],
       },
     },
-    run: ({ name, schedule = null }) => {
-      const info = db.prepare('INSERT INTO routines (name, schedule) VALUES (?, ?)').run(name, schedule);
+    run: ({ name, schedule = null, time_block = null }) => {
+      const info = db
+        .prepare('INSERT INTO routines (name, schedule, time_block) VALUES (?, ?, ?)')
+        .run(name, schedule, time_block);
       return get('routines', info.lastInsertRowid);
     },
   },
@@ -112,11 +118,12 @@ const handlers = {
           name: str('New name'),
           schedule: str('New schedule'),
           last_done: str('Last done date YYYY-MM-DD'),
+          time_block: { type: 'string', enum: ['morning', 'day', 'night'], description: 'Time-of-day group' },
         },
         required: ['id'],
       },
     },
-    run: ({ id, ...fields }) => updateRow('routines', id, fields, ['name', 'schedule', 'last_done']),
+    run: ({ id, ...fields }) => updateRow('routines', id, fields, ['name', 'schedule', 'last_done', 'time_block']),
   },
 
   complete_routine: {
@@ -304,6 +311,46 @@ const handlers = {
     },
   },
 
+  // --- Workout schedule ----------------------------------------------------
+  get_workout_schedule: {
+    mutates: false,
+    schema: {
+      name: 'get_workout_schedule',
+      description: 'Returns the full 7-day workout split (one row per day_of_week, 0=Sunday … 6=Saturday).',
+      input_schema: { type: 'object', properties: {} },
+    },
+    run: () => getWorkoutSchedule(),
+  },
+
+  update_workout_day: {
+    mutates: true,
+    schema: {
+      name: 'update_workout_day',
+      description: 'Update the workout focus, run flag, or notes for a specific day of the week.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          day_of_week: { type: 'number', description: '0=Sunday, 1=Monday, …, 6=Saturday' },
+          focus: str('Workout focus description'),
+          run: { type: 'number', enum: [0, 1], description: '1 = run day, 0 = no run' },
+          notes: str('Optional notes (e.g. "keep it light")'),
+        },
+        required: ['day_of_week'],
+      },
+    },
+    run: ({ day_of_week, focus, run, notes }) => {
+      const fields = { focus, run, notes };
+      const cols = ['focus', 'run', 'notes'].filter((c) => fields[c] !== undefined);
+      if (cols.length) {
+        db.prepare(
+          `UPDATE workout_schedule SET ${cols.map((c) => `${c} = ?`).join(', ')} WHERE day_of_week = ?`
+        ).run(...cols.map((c) => fields[c]), day_of_week);
+      }
+      return db.prepare('SELECT * FROM workout_schedule WHERE day_of_week = ?').get(day_of_week)
+        || { error: `no schedule for day_of_week ${day_of_week}` };
+    },
+  },
+
   // --- Read ----------------------------------------------------------------
   get_data: {
     mutates: false,
@@ -323,6 +370,8 @@ const handlers = {
         supplements: snap.supplements,
         latestWeight: snap.latestWeight,
         recentWeight: db.prepare('SELECT * FROM weight_log ORDER BY date DESC, id DESC LIMIT 10').all(),
+        workoutSchedule: getWorkoutSchedule(),
+        todayWorkout: todayWorkout(),
       };
     },
   },

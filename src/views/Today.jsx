@@ -53,14 +53,23 @@ export default function Today() {
       <section className="panel">
         <h2>Routines</h2>
         {data.routines.length ? (
-          <ul className="list">
-            {data.routines.map((r) => (
-              <li key={r.id}>
-                <span>{r.name}</span>
-                {r.schedule && <small className="muted">{r.schedule}</small>}
-              </li>
-            ))}
-          </ul>
+          ['morning', 'day', 'night'].map((block) => {
+            const items = data.routines.filter((r) => r.time_block === block);
+            if (!items.length) return null;
+            return (
+              <div key={block} className="routine-block">
+                <p className="routine-block-label">{block}</p>
+                <ul className="list">
+                  {items.map((r) => (
+                    <li key={r.id}>
+                      <span>{r.name}</span>
+                      {r.last_done && <small className="muted">last done {r.last_done}</small>}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            );
+          })
         ) : (
           <p className="muted">No routines yet.</p>
         )}
