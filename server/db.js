@@ -78,10 +78,18 @@ db.exec(`
   );
 `);
 
+// Add age/sex to profile if not present (idiomatic SQLite column migration).
+for (const stmt of [
+  'ALTER TABLE profile ADD COLUMN age INTEGER',
+  'ALTER TABLE profile ADD COLUMN sex TEXT',
+]) {
+  try { db.exec(stmt); } catch (_) {}
+}
+
 // --- Seed data (only when empty) --------------------------------------------
 // Profile: the user's starting facts.
 if (!db.prepare('SELECT 1 FROM profile WHERE id = 1').get()) {
-  db.prepare('INSERT INTO profile (id, height, current_weight, goal) VALUES (1, ?, ?, ?)')
+  db.prepare('INSERT INTO profile (id, height, current_weight, goal, age, sex) VALUES (1, ?, ?, ?, NULL, NULL)')
     .run(`6'1"`, 190, 'aggressive cut');
 }
 

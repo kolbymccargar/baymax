@@ -5,7 +5,7 @@ import db from './db.js';
 export const localToday = () => new Date().toLocaleDateString('en-CA');
 
 export function getProfile() {
-  const row = db.prepare('SELECT height, current_weight, goal FROM profile WHERE id = 1').get() || {};
+  const row = db.prepare('SELECT height, current_weight, goal, age, sex FROM profile WHERE id = 1').get() || {};
   const facts = {};
   for (const f of db.prepare('SELECT key, value FROM profile_facts').all()) facts[f.key] = f.value;
   return { ...row, facts };

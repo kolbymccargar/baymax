@@ -218,7 +218,8 @@ body {
 /* Shared inputs/buttons inside lists and forms */
 .row-form input,
 .crud-list input,
-.fields input {
+.fields input,
+.fields select {
   padding: 9px 11px;
   border-radius: 8px;
   border: 1px solid var(--border);
@@ -264,6 +265,18 @@ body {
   gap: 4px;
   font-size: 0.85rem;
   color: var(--muted);
+}
+
+/* Morning briefing block — above the chat history */
+.briefing {
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 14px;
+  padding-bottom: 14px;
+}
+
+.briefing .msg p {
+  white-space: pre-wrap;
+  line-height: 1.6;
 }
 
 /* Checkboxes (supplements on Today) */

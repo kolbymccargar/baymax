@@ -6,8 +6,19 @@ export default function Today() {
   const [data, setData] = useState(null);
   const reload = () => api.get('/api/today').then(setData);
 
+  const [briefing, setBriefing] = useState(null);
+  const [briefingLoading, setBriefingLoading] = useState(true);
+  const [briefingError, setBriefingError] = useState('');
+
   useEffect(() => {
     reload();
+    api.get('/api/briefing')
+      .then((d) => {
+        if (d.error) throw new Error(d.error);
+        setBriefing(d.briefing);
+      })
+      .catch((e) => setBriefingError(e.message))
+      .finally(() => setBriefingLoading(false));
   }, []);
 
   if (!data) return <p className="muted">Loading…</p>;
@@ -86,6 +97,16 @@ export default function Today() {
 
       <section className="panel chat-panel">
         <h2>Chat</h2>
+        <div className="briefing">
+          {briefingLoading && <p className="muted">Baymax is reading your data…</p>}
+          {briefingError && <p className="error">Briefing error: {briefingError}</p>}
+          {briefing && (
+            <div className="msg assistant">
+              <span className="role">Baymax</span>
+              <p>{briefing}</p>
+            </div>
+          )}
+        </div>
         <Chat onDataChanged={reload} />
       </section>
     </div>

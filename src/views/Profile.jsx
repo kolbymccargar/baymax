@@ -12,7 +12,13 @@ export default function Profile() {
   if (!p) return <p className="muted">Loading…</p>;
 
   const saveProfile = () =>
-    api.put('/api/profile', { height: p.height, current_weight: p.current_weight, goal: p.goal }).then(setP);
+    api.put('/api/profile', {
+      height: p.height,
+      current_weight: p.current_weight,
+      goal: p.goal,
+      age: p.age ?? null,
+      sex: p.sex ?? null,
+    }).then(setP);
   const setFactValue = (key, value) =>
     api.put(`/api/profile/facts/${encodeURIComponent(key)}`, { value }).then(setP);
   const delFact = (key) => api.del(`/api/profile/facts/${encodeURIComponent(key)}`).then(setP);
@@ -42,6 +48,29 @@ export default function Profile() {
         <label>
           Goal
           <input value={p.goal ?? ''} onChange={(e) => setP({ ...p, goal: e.target.value })} onBlur={saveProfile} />
+        </label>
+        <label>
+          Age
+          <input
+            type="number"
+            min="1"
+            max="120"
+            value={p.age ?? ''}
+            onChange={(e) => setP({ ...p, age: e.target.value })}
+            onBlur={saveProfile}
+            placeholder="e.g. 32"
+          />
+        </label>
+        <label>
+          Sex
+          <select
+            value={p.sex ?? ''}
+            onChange={(e) => { const updated = { ...p, sex: e.target.value || null }; setP(updated); api.put('/api/profile', { height: updated.height, current_weight: updated.current_weight, goal: updated.goal, age: updated.age ?? null, sex: updated.sex ?? null }).then(setP); }}
+          >
+            <option value="">— not set —</option>
+            <option value="male">Male</option>
+            <option value="female">Female</option>
+          </select>
         </label>
       </div>
 

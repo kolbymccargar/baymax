@@ -8,6 +8,7 @@ import { MODEL, PORT, HISTORY_LIMIT } from './config.js';
 import { buildSystemPrompt } from './brain.js';
 import { getProfile, todaySnapshot, brainContext, localToday } from './data.js';
 import { TOOLS, executeTool } from './tools.js';
+import { parseHeightToInches, mifflinBMR, computeTDEE, calsPerMileRunning } from './fitness.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -55,9 +56,9 @@ crud('/api/weight_log', 'weight_log', ['date', 'weight']);
 app.get('/api/profile', (req, res) => res.json(getProfile()));
 
 app.put('/api/profile', (req, res) => {
-  const { height, current_weight, goal } = req.body;
-  db.prepare('UPDATE profile SET height = ?, current_weight = ?, goal = ? WHERE id = 1')
-    .run(height ?? null, current_weight ?? null, goal ?? null);
+  const { height, current_weight, goal, age, sex } = req.body;
+  db.prepare('UPDATE profile SET height = ?, current_weight = ?, goal = ?, age = ?, sex = ? WHERE id = 1')
+    .run(height ?? null, current_weight ?? null, goal ?? null, age ?? null, sex ?? null);
   res.json(getProfile());
 });
 
@@ -90,6 +91,82 @@ app.post('/api/supplements/:id/toggle', (req, res) => {
 
 // --- Today: aggregate everything the dashboard + chat brain need -------------
 app.get('/api/today', (req, res) => res.json(todaySnapshot()));
+
+// --- Proactive morning briefing ----------------------------------------------
+// Computes all health numbers server-side (Mifflin-St Jeor), then passes them
+// to the model as hard facts so Baymax states them accurately, not by guessing.
+app.get('/api/briefing', async (req, res) => {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) return res.status(500).json({ error: 'ANTHROPIC_API_KEY not set' });
+
+  const now = new Date();
+  const ctx = brainContext();
+  const p = ctx.profile;
+
+  // Inputs for the formula
+  const weightLbs = ctx.latestWeight?.weight ?? p.current_weight;
+  const heightInches = parseHeightToInches(p.height);
+  const age = p.age ? Number(p.age) : null;
+  const sex = p.sex || null;
+
+  // Server-computed numbers — the model states these, never recalculates them.
+  const bmr = mifflinBMR(weightLbs, heightInches, age, sex);
+  const tdee = computeTDEE(bmr);               // multiplier 1.375 (lightly active)
+  const deficit = tdee ? Math.round(tdee * 0.25) : null;   // 25% aggressive cut
+  const targetCalories = tdee && deficit ? tdee - deficit : null;
+  const cpm = calsPerMileRunning(weightLbs);   // kcal per mile
+  const runCalTarget = deficit ? Math.round(deficit * 0.4) : null; // 40% of deficit from run
+  const runMiles = cpm && runCalTarget ? (runCalTarget / cpm).toFixed(1) : null;
+  const runMinutes = runMiles ? Math.round(Number(runMiles) * 10) : null; // ~10 min/mile
+
+  // Tell the model what's missing so it can flag it in character instead of guessing.
+  const missingFields = [
+    !weightLbs && 'weight',
+    !heightInches && 'height',
+    !age && 'age',
+    !sex && 'sex',
+  ].filter(Boolean);
+
+  const numbersBlock = missingFields.length
+    ? `COMPUTED NUMBERS: Cannot calculate — missing from profile: ${missingFields.join(', ')}. Tell the user to fill these in on the Profile tab. Still deliver the rest of the briefing.`
+    : `COMPUTED NUMBERS — the server calculated these with the Mifflin-St Jeor equation. State them exactly as given; do not recalculate or round differently.
+  BMR: ${Math.round(bmr)} kcal/day
+  TDEE (BMR × 1.375, lightly active): ${tdee} kcal/day
+  Deficit target (25% aggressive cut): ${deficit} kcal/day
+  Target daily intake: ${targetCalories} kcal
+  Run calorie target (40% of today's deficit): ${runCalTarget} kcal
+  Estimated run: ${runMiles} miles (~${runMinutes} min at 10 min/mile)
+  Calories-per-mile assumption: 0.75 × ${weightLbs} lbs = ${cpm} kcal/mile`;
+
+  const system = buildSystemPrompt(ctx, now);
+
+  // Synthetic trigger — the user hasn't typed anything; we fire the briefing.
+  const trigger = `${numbersBlock}
+
+Write my morning briefing now. I just opened the app. Deliver it in character — no preamble, no meta-commentary, just open and go.
+
+Hit all five sections in order:
+1. GREETING — date/time-aware, in voice
+2. TODAY'S RUN TARGET — state the computed numbers above word for word. Flag all as estimates (one phrase, e.g. "rough math" or "ballpark").
+3. FUEL — fasted vs. fed for the run given the aggressive cut; 1-2 specific food or snack suggestions for fat loss and performance. Flag as general guidance.
+4. SUPPLEMENTS — list active supplements; which to take this morning and when; call out any not yet marked taken today.
+5. TODAY — tasks due today, routines, anything overdue called out clearly.
+
+Tight. Bullets over paragraphs. Briefing, not an essay.`;
+
+  try {
+    const data = await callAnthropic(apiKey, {
+      model: MODEL,
+      max_tokens: 1024,
+      system,
+      messages: [{ role: 'user', content: trigger }],
+    });
+    const briefing = (data.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('');
+    res.json({ briefing });
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
 
 // --- Chat memory -------------------------------------------------------------
 // Full conversation history (oldest first) for the UI to render on load.
